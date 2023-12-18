@@ -25,7 +25,7 @@ curl -fsSL https://get.docker.com | sudo bash
 
 # Install cri-dockered
 cd /opt/ && sudo git clone https://github.com/Mirantis/cri-dockerd.git
-cd /opt/cri-dockerd/
+cd /opt/cri-dockerd/ 
 
 # install kubelet, kubectl, kubeadm
 curl -fsSL https://pkgs.k8s.io/core:/stable:/v${VERSION}/deb/Release.key | sudo gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
