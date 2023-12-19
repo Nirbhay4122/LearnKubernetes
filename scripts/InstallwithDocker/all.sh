@@ -2,13 +2,20 @@
 #!/bin/bash
 #
 # Common setup for all servers (Control Plane and Nodes)
+#*****************Help******************
+# To intialliaze the cluster (This cluster calico network)
+# sudo kubeadm init --pod-network-cidr=192.168.0.0/16 --cri-socket=unix:///var/run/cri-dockerd.sock --v=5
+# Install calico network interface driver
+# curl https://raw.githubusercontent.com/projectcalico/calico/v3.27.0/manifests/calico.yaml -O
+# kubectl apply -f calico.yaml
 
 set -euxo pipefail
 
 # Variable Declaration
 
-KUBERNETES_VERSION="1.28.1-00"
+KUBERNETES_VERSION="1.28.0-00"
 VERSION="1.28"
+CRI_DOCKERD_VERSION="0.3.8"
 # You can check the all available go version in Link: https://go.dev/dl/
 GO_VERSION="1.20.12"
 
@@ -21,23 +28,39 @@ sudo apt-get update -y
 sudo apt-get install -y apt-transport-https ca-certificates curl gpg git
 
 # Install docker
-curl -fsSL https://get.docker.com | sudo bash
+if ! command -v docker >/dev/null; then
+    curl -fsSL https://get.docker.com | sudo bash
+fi
+
+# Installing go lang
+# sudo wget https://go.dev/dl/go${GO_VERSION}.linux-amd64.tar.gz -P /opt/
+# sudo tar -C /usr/local -xzf /opt/go${GO_VERSION}.linux-amd64.tar.gz
+# echo "export PATH=$PATH:/usr/local/go/bin" >> ~/.profile
+# source ~/.profile
 
 # Install cri-dockered
-cd /opt/ && sudo git clone https://github.com/Mirantis/cri-dockerd.git
-cd /opt/cri-dockerd/ 
-
+if ! command -v cri-dockerd >/dev/null; then
+    cd /opt/
+    sudo wget https://github.com/Mirantis/cri-dockerd/releases/download/v${CRI_DOCKERD_VERSION}/cri-dockerd-${CRI_DOCKERD_VERSION}.amd64.tgz
+    sudo tar -xzvf cri-dockerd-${CRI_DOCKERD_VERSION}.amd64.tgz
+    cd /opt/cri-dockerd/ && sudo mv cri-dockerd /usr/local/bin/ && cd
+    sudo wget https://raw.githubusercontent.com/Mirantis/cri-dockerd/master/packaging/systemd/cri-docker.service
+    sudo wget https://raw.githubusercontent.com/Mirantis/cri-dockerd/master/packaging/systemd/cri-docker.socket
+    sudo mv cri-docker.socket cri-docker.service /etc/systemd/system/
+    sudo sed -i -e 's,/usr/bin/cri-dockerd,/usr/local/bin/cri-dockerd,' /etc/systemd/system/cri-docker.service
+    sudo systemctl daemon-reload
+    sudo systemctl enable cri-docker.service
+    sudo systemctl enable --now cri-docker.socket
+fi
 # install kubelet, kubectl, kubeadm
-curl -fsSL https://pkgs.k8s.io/core:/stable:/v${VERSION}/deb/Release.key | sudo gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+# curl -fsSL https://pkgs.k8s.io/core:/stable:/v${VERSION}/deb/Release.key | sudo gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
 # Generate sourcelist file
-echo "deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v${VERSION}/deb/ /" | sudo tee /etc/apt/sources.list.d/kubernetes.list
+# echo "deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v${VERSION}/deb/ /" | sudo tee /etc/apt/sources.list.d/kubernetes.list
+curl -s https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo apt-key add -
+cat <<EOF | sudo tee /etc/apt/sources.list.d/kubernetes.list
+deb https://apt.kubernetes.io/ kubernetes-xenial main
+EOF
 # Installing kubelet, kubeadm, kubectl
 sudo apt-get update
 sudo apt-get install -y kubelet="$KUBERNETES_VERSION" kubectl="$KUBERNETES_VERSION" kubeadm="$KUBERNETES_VERSION"
 sudo apt-mark hold kubelet kubeadm kubectl
-
-# Installing go lang
-sudo wget https://go.dev/dl/go${GO_VERSION}.linux-amd64.tar.gz -P /opt/
-sudo tar -C /usr/local -xzf /opt/go${GO_VERSION}.linux-amd64.tar.gz
-echo "export PATH=$PATH:/usr/local/go/bin" >> ~/.profile
-source ~/.profile
