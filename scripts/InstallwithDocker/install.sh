@@ -8,6 +8,10 @@
 # Install calico network interface driver
 # curl https://raw.githubusercontent.com/projectcalico/calico/v3.27.0/manifests/calico.yaml -O
 # kubectl apply -f calico.yaml
+##########JOIN COMMAND##################
+# kubeadm token create --print-join-command
+# Sample and add this in the last of the command (--cri-socket=unix:///var/run/cri-dockerd.sock --v=5)
+# sudo kubeadm join 172.31.43.74:6443 --token zhafut.84u016lql2jxmyz5 --discovery-token-ca-cert-hash sha256:e627dd5d7c15246bae08ff6c00a580b94d6a1b9390401d90a45f12e5ad34dc9a
 
 set -euxo pipefail
 
